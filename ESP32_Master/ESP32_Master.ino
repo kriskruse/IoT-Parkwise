@@ -8,6 +8,7 @@ typedef struct SubData {
   int id;
   bool dist;
   bool light;
+  int debug;
 }SubData;
 
 // Create a SubData called myData
@@ -33,8 +34,10 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
   // Update the structures with the new incoming data
   boardsData[myData.id-1].dist = myData.dist;
   boardsData[myData.id-1].light = myData.light;
+  boardsData[myData.id-1].debug = myData.debug;
   Serial.printf("dist value: %d \n", boardsData[myData.id-1].dist);
   Serial.printf("light value: %d \n", boardsData[myData.id-1].light);
+  Serial.printf("light value: %d \n", boardsData[myData.id-1].debug);
   Serial.println();
 }
  

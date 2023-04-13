@@ -1,0 +1,2 @@
+"sketch": "ESP32_Master/ESP32_Master.ino"
+"sketch": "SubBoards/SubBoards.ino"

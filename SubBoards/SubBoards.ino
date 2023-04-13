@@ -11,6 +11,7 @@ typedef struct SubData {
     int id; // must be unique for each sender board
     bool dist;
     bool light;
+    int debug;
 } SubData;
 
 // Create a SubData called myData
@@ -59,6 +60,7 @@ void loop() {
   myData.id = 1;
   myData.dist = random(0,1);
   myData.light = random(0,1);
+  myData.debug = analogRead(36);
 
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
