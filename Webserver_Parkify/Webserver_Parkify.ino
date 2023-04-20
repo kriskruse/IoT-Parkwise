@@ -14,6 +14,7 @@ ESP8266WebServer server(80);
 const int led = 4;  //D2
 const int led1 =0; //D3
 unsigned long payStartTime[] ={0,0}; //
+int parkingStates[2] = {1,1};
 
 void handleRoot();  
 void handleLED();  
@@ -71,8 +72,8 @@ void loop() {
   server.handleClient();
 }
 
-/*
-void handleRoot() {                         // When URI / is requested, send a web page with a button to toggle the LED
+
+/*void handleRoot() {                         // When URI / is requested, send a web page with a button to toggle the LED
   server.send(200, "text/html", "<html><title>Parkify</title><meta charset=\"utf-8\" \/> \ 
       </head><body><h1>DTU Parking Lot</h1> \ 
       <p>The map below illustrates the availability of parking spots. </p> \
@@ -85,11 +86,12 @@ void handleRoot() {                         // When URI / is requested, send a w
 }*/
 void handleRoot() {                         // When URI / is requested, send a web page with a button to toggle the LED
   sendHomePage();
+  //Serial.println("i c u");
       
 }
 
 void sendHomePage() {
-  int* parkingStates = getParkingStates();
+  updateParkingSpace();
   if (parkingStates[0]==0 && parkingStates[1]==0) {
     server.send(200, "text/html", "<html><title>Parkify</title><meta charset=\"utf-8\" \/> \ 
       </head><body><h1>DTU Parking Lot</h1> \ 
@@ -165,8 +167,9 @@ void handleNotFound(){
 }
 
 
-int* getParkingStates()  { //0 means empty, 1 means reserved, and 2 means parked
+void updateParkingSpace()  { //0 means empty, 1 means reserved, and 2 means parked
   //Dummy method
-  int parkingStates[] = {0,0};
-  return(parkingStates);
+  //return(parkingStates);
+  parkingStates[0] = 0;
+  parkingStates[1] = 0;
 }
