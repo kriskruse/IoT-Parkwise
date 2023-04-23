@@ -3,65 +3,51 @@
 #include <ESPAsyncTCP.h>
 #include <Ultrasonic.h>
 
-/*
-#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <ESP8266WiFiMulti.h>   // Include the Wi-Fi-Multi library
-#include <ESP8266WebServer.h>   // Include the WebServer library
-#include <ESP8266mDNS.h>        // Include the mDNS library
-*/
-
 // Replace with your network credentials
 const char* ssid = "kunikunkun";
 const char* password = "58354723";
 
-// #define DHTPIN 27     // Digital pin connected to the DHT sensor
 const int trigPin = D0;
 const int echoPin = D1;
 const int photores = A0;
 
-Ultrasonic ultrasonic (trigPin, echoPin);
+Ultrasonic usensor (trigPin, echoPin);
 
-// long duration;
 int distance;
 int value;
 int photoThres = 500; // photores  sensor threshold
-int proxiThres = 20; // proximity sensor threshold
+int proxiThres = 20;  // proximity sensor threshold
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
 String readDistance() {
-  /*
-  digitalWrite(trigPin, LOW);
-  delay(20);
-  digitalWrite(trigPin, HIGH);
-  delay(100);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance = duration * 0.034 / 2;
-  */
-
-  distance = ultrasonic.read();
+  distance = usensor.read();
   
-  if (isnan(distance)) {    
+  if (isnan(distance))    
     return "--";
-  }
-  else {
+  else
     return String(distance);
-  }
 }
 
 String readPhotores() {
   value = analogRead(photores);
-  delay(500);
 
-  if (isnan(value)) {    
+  if (isnan(value))    
     return "--";
-  }
-  else {
+  else
     return String(value);
-  }
+}
+
+String carStatus() {
+  if (distance < proxiThres && value < photoThres)
+    return "Car is detected!";
+  else if (distance < proxiThres && value > photoThres)
+    return "Sensor mismatch!";
+  else if (distance > proxiThres && value < photoThres)
+    return "Sensor mismatch!";
+  else
+    return "Car is not detected!";
 }
 
 const char index_html[] PROGMEM = R"rawliteral(
@@ -92,17 +78,27 @@ IoT Project - Car Detection Algorithm
 <body>
   <h2>ESP8266 Car Sensing Server</h2>
   <p>
-    <span class="values">Distance</span> 
+    <span class="values">Distance</span>
+    <br>
     <span id="value1">%DISTANCE%</span>
     <sup class="units"></sup>
   </p>
   <p>
     <span class="values">Brightness Value</span>
+    <br>
     <span id="value2">%BRIGHTNESS%</span>
+    <sup class="units"></sup>
+  </p>
+  <p>
+    <span class="values">Detection Status</span>
+    <br>
+    <span id="value3">%STATUS%</span>
     <sup class="units"></sup>
   </p>
 </body>
 <script>
+
+// loop for the distance sensor (ultrasonic hc-sr04)
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
@@ -114,6 +110,7 @@ setInterval(function ( ) {
   xhttp.send();
 }, 1000 ) ;
 
+// loop for the photoresistor sensor
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
@@ -124,18 +121,30 @@ setInterval(function ( ) {
   xhttp.open("GET", "/value2", true);
   xhttp.send();
 }, 1000 ) ;
+
+// loop for updating the status of the parking lot
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("value3").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/value3", true);
+  xhttp.send();
+}, 1000 ) ;
 </script>
 </html>)rawliteral";
 
-// Replaces placeholder with DHT values
+// Replaces placeholder with sensor values
 String processor(const String& var){
   //Serial.println(var);
-  if(var == "DISTANCE"){
+  if(var == "DISTANCE")
     return readDistance();
-  }
-  else if(var == "BRIGHTNESS"){
+  else if(var == "BRIGHTNESS")
     return readPhotores();
-  }
+  else if(var == "STATUS")
+    return carStatus();
   return String();
 }
 
@@ -147,7 +156,7 @@ void setup(){
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to WiFi..");
+    Serial.println("Connecting to WiFi...");
   }
 
   // Print ESP32 Local IP Address
@@ -163,11 +172,14 @@ void setup(){
   server.on("/value2", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", readPhotores().c_str());
   });
+  server.on("/value3", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", carStatus().c_str());
+  });
 
   // Start server
   server.begin();
 }
  
-void loop(){
+void loop() {
   
 }
