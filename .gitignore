@@ -1,2 +1,9 @@
 
 .vscode/arduino.json
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/IoT-ParkingLot.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.vscode/c_cpp_properties.json
