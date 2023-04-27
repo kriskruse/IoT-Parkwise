@@ -83,7 +83,7 @@ void setup() {
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
     return;
-  
+  }
   //HTTP Server Setup
     Serial.print("Connecting to ");
     Serial.println(ssid);
@@ -98,7 +98,7 @@ void setup() {
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
     server.begin();
-  }
+  
   
   // Once ESPNow is successfully Init, we will register for recv CB to
   // get recv packer info
@@ -122,20 +122,28 @@ void setup() {
 }
  
 void loop() {
-  // Acess the variables for each board
+  static unsigned long lastMethod1Time = 0;
+  unsigned long currentTime = millis();
+  unsigned long elapsedTime = currentTime - lastMethod1Time;
   
-  bool result = false;
-  // Send message via ESP-NOW
-  for (SubData sentData : boardsData){
-    esp_err_t result = esp_now_send(sentData.mac, (uint8_t *) &sentData, sizeof(sentData));
+  // Acess the variables for each board
+  if (elapsedTime >= 10000) {
+    bool result = false;
+    // Send message via ESP-NOW
+    for (SubData sentData : boardsData){
+      esp_err_t result = esp_now_send(sentData.mac, (uint8_t *) &sentData, sizeof(sentData));
+    }
+    
+    if (result == ESP_OK) {
+      Serial.println("Sent with success");
+    }
+    else {
+      Serial.println("Error sending the data");
+    }
+    lastMethod1Time = currentTime;
+
   }
-   
-  if (result == ESP_OK) {
-    Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }
+
   
   //HTTP server
     WiFiClient client = server.available();   // Listen for incoming clients
@@ -251,15 +259,18 @@ void loop() {
 
 void updateParkingStates()  { //0 means empty, 1 means reserved, and 2 means parked
   //Dummy method
-  //parkingStates[0] = 0;
-  //parkingStates[1] = 0;
+  parkingStates[0] =   boardsData[0].state;
+  parkingStates[1] = boardsData[1].state;
 }
 
 void bookSpot(int spotNum)  { //first check if someone pulled in to the spot or reserved it since you reserved it
   updateParkingStates();
   if (parkingStates[spotNum]==0)  {
     parkingStates[spotNum]=1;
+    boardsData[spotNum].reserved= true;
+
   }
+
   //tell the other server the same thing and that records the timestamp
 }
 
