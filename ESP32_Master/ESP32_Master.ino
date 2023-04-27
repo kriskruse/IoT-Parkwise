@@ -6,21 +6,20 @@
 // Must match the sender structure
 typedef struct SubData {
   int id;
-  bool dist;
-  bool light;
-  int debug;
+  int state;
+  bool reserved;
+  uint8_t mac[];
 }SubData;
 
 // Create a SubData called myData
 SubData myData;
 
 // Create a structure to hold the readings from each board
-SubData board1;
-SubData board2;
-SubData board3;
+SubData board1 = {id = 1, state = 0, reserved = false, mac =  {0x08, 0xB6, 0x1F, 0x81, 0x09, 0xF4}};
+SubData board2 = {id = 2, state = 0, reserved = false, mac =  {0xC8, 0xC9, 0xA3, 0x64, 0xB4, 0x7B}};
 
 // Create an array with all the structures
-SubData boardsData[3] = {board1, board2, board3};
+SubData boardsData[2] = {board1, board2};
 
 // callback function that will be executed when data is received
 void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) {
@@ -32,15 +31,19 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
   memcpy(&myData, incomingData, sizeof(myData));
   Serial.printf("Board ID %u: %u bytes\n", myData.id, len);
   // Update the structures with the new incoming data
-  boardsData[myData.id-1].dist = myData.dist;
-  boardsData[myData.id-1].light = myData.light;
-  boardsData[myData.id-1].debug = myData.debug;
-  Serial.printf("dist value: %d \n", boardsData[myData.id-1].dist);
-  Serial.printf("light value: %d \n", boardsData[myData.id-1].light);
-  Serial.printf("light value: %d \n", boardsData[myData.id-1].debug);
+  boardsData[myData.id-1].state = myData.state;
+  boardsData[myData.id-1].reserved = myData.reserved;
+  Serial.printf("state value: %d \n", boardsData[myData.id-1].state);
+  Serial.printf("reserved value: %d \n", boardsData[myData.id-1].reserved);
   Serial.println();
 }
  
+// callback when data is sent
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
 void setup() {
   //Initialize Serial Monitor
   Serial.begin(115200);
@@ -57,16 +60,40 @@ void setup() {
   // Once ESPNow is successfully Init, we will register for recv CB to
   // get recv packer info
   esp_now_register_recv_cb(OnDataRecv);
+
+  // Once ESPNow is successfully Init, we will register for Send CB to
+  // get the status of Trasnmitted packet
+  esp_now_register_send_cb(OnDataSent);
+  
+  // Register peer
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+  
+  // Add peer        
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
 }
  
 void loop() {
   // Acess the variables for each board
-  /*int board1X = boardsStruct[0].x;
-  int board1Y = boardsStruct[0].y;
-  int board2X = boardsStruct[1].x;
-  int board2Y = boardsStruct[1].y;
-  int board3X = boardsStruct[2].x;
-  int board3Y = boardsStruct[2].y;*/
+  
 
-  delay(10000);  
+  // Send message via ESP-NOW
+  for (SubData sentData : boardsData){
+    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &sentData, sizeof(sentData));
+  }
+   
+  if (result == ESP_OK) {
+    Serial.println("Sent with success");
+  }
+  else {
+    Serial.println("Error sending the data");
+  }
+  delay(10000);
 }
+
+
+ 
