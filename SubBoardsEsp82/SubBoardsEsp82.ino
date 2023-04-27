@@ -1,28 +1,41 @@
-#include <espnow.h>
-#include <ESP8266WiFi.h>
+/*
+  Rui Santos
+  Complete project details at https://RandomNerdTutorials.com/esp-now-one-to-many-esp8266-nodemcu/
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files.
+  
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+*/
 
-// REPLACE WITH THE RECEIVER'S MAC Address
-uint8_t broadcastAddress[] = {0x08, 0xB6, 0x1F, 0x81, 0x0F, 0xEC};
+#include <ESP8266WiFi.h>
+#include <espnow.h>
+
+// REPLACE WITH Main MAC Address
+uint8_t broadcastAddress1[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // Structure example to send data
 // Must match the receiver structure
-typedef struct SubData {
-    int id; // must be unique for each sender board
-    bool dist;
-    bool light;
-    int debug;
-    char mac[] = WiFi.macAddress();
-} SubData;
+typedef struct test_struct {
+    int x;
+    int y;
+} test_struct;
 
-// Create a SubData called myData
-SubData myData;
+// Create a struct_message called test to store variables to be sent
+test_struct test;
 
 unsigned long lastTime = 0;  
 unsigned long timerDelay = 2000;  // send readings timer
 
 // Callback when data is sent
 void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
-  Serial.print("Last Packet Send Status: ");
+  char macStr[18];
+  Serial.print("Packet to:");
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  Serial.print(macStr);
+  Serial.print(" send status: ");
   if (sendStatus == 0){
     Serial.println("Delivery success");
   }
@@ -37,6 +50,7 @@ void setup() {
  
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
 
   // Init ESP-NOW
   if (esp_now_init() != 0) {
@@ -44,25 +58,26 @@ void setup() {
     return;
   }
 
+  esp_now_set_self_role(ESP_NOW_ROLE_CONTROLLER);
+  
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
-  esp_now_set_self_role(ESP_NOW_ROLE_CONTROLLER);
   esp_now_register_send_cb(OnDataSent);
   
   // Register peer
-  esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_SLAVE, 1, NULL, 0);
+  esp_now_add_peer(broadcastAddress1, ESP_NOW_ROLE_SLAVE, 1, NULL, 0);
+  esp_now_add_peer(broadcastAddress2, ESP_NOW_ROLE_SLAVE, 1, NULL, 0);
+
 }
  
 void loop() {
   if ((millis() - lastTime) > timerDelay) {
     // Set values to send
-    myData.id = 1;
-    myData.dist = true;
-    myData.light = true;
-    myData.debug = 12;
+    test.x = random(1, 50);
+    test.y = random(1, 50);
 
     // Send message via ESP-NOW
-    esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+    esp_now_send(0, (uint8_t *) &test, sizeof(test));
 
     lastTime = millis();
   }
