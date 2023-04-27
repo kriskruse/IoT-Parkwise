@@ -40,9 +40,9 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
   Serial.printf("Board ID %u: %u bytes\n", myData.id, len);
   // Update the structures with the new incoming data
   boardData.state = myData.state;
-  boardData.reserved = myData.reserved;
-  Serial.printf("state value: %d \n", boardData.state);
-  Serial.printf("reserved value: %d \n", boardData.reserved);
+  bo.reserved = myData.reserved;
+  Serial.printf("state value: %d \n", boardsData[myData.id-1].state);
+  Serial.printf("reserved value: %d \n", boardsData[myData.id-1].reserved);
   Serial.println();
 }
  
@@ -83,8 +83,8 @@ void setup() {
  
 void loop() {
   // Set values to send
-  boardData.state = 0; // set state based on sensor data
-  boardData.reserved = false; // recieved from main
+  myData.state = 0; // set state based on sensor data
+  myData.reserved = false; // recieved from main
 
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
