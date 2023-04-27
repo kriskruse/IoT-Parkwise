@@ -1,6 +1,12 @@
 
-#include <esp_now.h>
-#include <WiFi.h>
+#ifdef ESP32
+  #include <esp_now.h>
+  #include <WiFi.h>
+#else
+  #include <espnow.h>
+  #include <ESP8266WiFi.h>
+#endif
+
 
 // REPLACE WITH THE RECEIVER'S MAC Address
 uint8_t broadcastAddress[] = {0x08, 0xB6, 0x1F, 0x81, 0x0F, 0xEC};
