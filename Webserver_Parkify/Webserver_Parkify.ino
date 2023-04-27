@@ -13,16 +13,10 @@ WiFiServer server(80);
 String header;
 
 // Auxiliar variables to store the current output state
-String output26State = "off";
 
-String output27State = "off";
 int parkingStates[2] = {0,0};
 char* colors[] = {"green", "yellow", "red"};
 
-
-// Assign output variables to GPIO pins
-const int output26 = 26;
-const int output27 = 27;
 
 // Current time
 unsigned long currentTime = millis();
