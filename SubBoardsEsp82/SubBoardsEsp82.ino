@@ -1,11 +1,20 @@
 #include <ESP8266WiFi.h>
 #include <espnow.h>
+#include <SPI.h>
+#include <MFRC522.h>
 
+// RFID -------
+#define SS_PIN D8
+#define RST_PIN D0
+MFRC522 rfid(SS_PIN, RST_PIN);
+MFRC522::MIFARE_Key key;
+
+// Communication code --------
 // REPLACE WITH Main MAC Address
 uint8_t broadcastAddress[] = {0x08, 0xB6, 0x1F, 0x81, 0x0F, 0xEC};
 
 // Updates sensor readings every 1 seconds
-const long interval = 1000; 
+const long interval = 10000; 
 unsigned long previousMillis = 0; 
 
 // Structure example to send data
@@ -44,36 +53,38 @@ void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
   Serial.println(len);
   boardData.reserved = myData.reserved;
 }
+
+void checkForCard(){
+  if (rfid.PICC_IsNewCardPresent()) { // new tag is available
+    Serial.println("Card detected! ");
+  }
+}
  
 void setup() {
   // Init Serial Monitor
   Serial.begin(115200);
+
+  // RFID Init
+  SPI.begin(); // init SPI bus
+  rfid.PCD_Init(); // init MFRC522
+  delay(10);
  
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
-
-  // Init ESP-NOW
-  if (esp_now_init() != 0) {
+  if (esp_now_init() != 0) { // Init ESP-NOW
     Serial.println("Error initializing ESP-NOW");
     return;
   }
-
-  // Set ESP-NOW Role
-  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-
+  esp_now_set_self_role(ESP_NOW_ROLE_COMBO); // Set ESP-NOW Role
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
   esp_now_register_send_cb(OnDataSent);
-  
-  // Register peer
-  esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
-  
-  // Register for a callback function that will be called when data is received
-  esp_now_register_recv_cb(OnDataRecv);
+  esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, NULL, 0); // Register peer
+  esp_now_register_recv_cb(OnDataRecv); // Register for a callback function that will be called when data is received
 
 }
- 
+
 void loop() {
 
 
@@ -92,4 +103,7 @@ void loop() {
     // Send message via ESP-NOW
     esp_now_send(broadcastAddress, (uint8_t *) &boardData, sizeof(boardData));
   }
+
+  checkForCard();
+
 }
