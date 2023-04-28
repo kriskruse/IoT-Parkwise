@@ -7,8 +7,8 @@
 const char* ssid = "kunikunkun";
 const char* password = "58354723";
 
-const int trigPin = D0;
-const int echoPin = D1;
+const int trigPin = D1;
+const int echoPin = D2;
 const int photores = A0;
 
 Ultrasonic usensor (trigPin, echoPin);

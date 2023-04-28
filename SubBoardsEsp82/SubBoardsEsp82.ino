@@ -2,6 +2,18 @@
 #include <espnow.h>
 #include <SPI.h>
 #include <MFRC522.h>
+#include <Ultrasonic.h>
+
+// Sensors ------
+const int trigPin = D1;
+const int echoPin = D2;
+const int photores = A0;
+
+int distance;
+int value;
+int photoThres = 500; // photores  sensor threshold
+int proxiThres = 20;  // proximity sensor threshold
+Ultrasonic usensor (trigPin, echoPin);
 
 // RFID -------
 #define SS_PIN D8
@@ -17,6 +29,13 @@ uint8_t broadcastAddress[] = {0x08, 0xB6, 0x1F, 0x81, 0x0F, 0xEC};
 const long interval = 10000; 
 unsigned long previousMillis = 0; 
 
+
+// payment interval
+const long payinter = 30000;
+unsigned long landingtime = 0;
+bool trigger = false;
+bool paid = true;
+
 // Structure example to send data
 // Must match the receiver structure
 typedef struct SubData {
@@ -29,7 +48,7 @@ typedef struct SubData {
 // Create a SubData called myData
 SubData myData;  // incoming data
 SubData boardData = { 1, 0, false, {0x08, 0xB6, 0x1F, 0x81, 0x09, 0xF4}}; // mac adr is this boards
-// Create peer interface
+
 
 // Callback when data is sent
 void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
@@ -54,10 +73,34 @@ void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
   boardData.reserved = myData.reserved;
 }
 
-void checkForCard(){
+bool checkForCard(){
   if (rfid.PICC_IsNewCardPresent()) { // new tag is available
     Serial.println("Card detected! ");
+    return true;
   }
+  else{
+    return false;
+  }
+}
+
+bool readDistance() {
+  distance = usensor.read();
+  if (isnan(distance))    
+    return false;
+  if (distance < proxiThres){
+    return true;
+  }
+  return false;
+}
+
+bool readPhotores() {
+  value = analogRead(photores);
+  if (isnan(value))    
+    return false;
+  if (value < photoThres){
+    return true;
+  }
+  return false;
 }
  
 void setup() {
@@ -86,24 +129,61 @@ void setup() {
 }
 
 void loop() {
-
-
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     // save the last time you updated the DHT values
     previousMillis = currentMillis;
 
     //Get data readings
-    //getReadings();
+    if (readDistance() && readPhotores()){
+      boardData.state = 1;
+      if (!trigger) {
+        // Makes the timer only start ones
+        trigger = true;
+        landingtime = currentMillis;
+      }
+      else if (landingtime - previousMillis >= payinter && !paid){
+        // not paid in time
+        boardData.state = 3;
+      }
+    }
+    else if (readDistance() && !readPhotores()){
+      // one sensor failed, call support
+      boardData.state = 5;
+      paid = false;
+      trigger = false;
+      Serial.println("Error on the sensors!");
+      Serial.println(distance);
+      Serial.println(value):
+    }
+
+    else if (!readDistance() && readPhotores()){
+      // one sensor failed, call support
+      boardData.state = 5;
+      paid = false;
+      trigger = false;
+      Serial.println("Error on the sensors!");
+      Serial.println(distance);
+      Serial.println(value):
+    }
+
+    else {
+      // car has left, reset to 0
+      boardData.state = 0;
+      paid = false;
+      trigger = false;
+      }
+
+
 
     // Set values to send
-    boardData.state = 0; // set state based on sensor data
     boardData.reserved = false; // recieved from main
 
     // Send message via ESP-NOW
     esp_now_send(broadcastAddress, (uint8_t *) &boardData, sizeof(boardData));
   }
 
-  checkForCard();
-
+  if (checkForCard()){ 
+    paid = true;
+  }
 }
