@@ -37,7 +37,7 @@ esp_now_peer_info_t peerInfo;
   
   // Auxiliar variables to store the current output state
   int parkingStates[2] = {0,0};
-  char* colors[] = {"green", "yellow", "red"};
+  char* colors[] = {"green", "yellow", "red","orange", "gray", "gray"};
 
   // Current time
   unsigned long currentTime = millis();
