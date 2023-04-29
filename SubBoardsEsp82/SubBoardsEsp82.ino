@@ -52,12 +52,15 @@ SubData boardData = { 1, 0, false, {0x08, 0xB6, 0x1F, 0x81, 0x09, 0xF4}}; // mac
 
 // Callback when data is sent
 void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
+  // create mac string so we can serial print who we send data to
   char macStr[18];
   Serial.print("Packet to:");
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
          mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
   Serial.print(macStr);
   Serial.print(" send status: ");
+
+  // show if the delivery was succesful
   if (sendStatus == 0){
     Serial.println("Delivery success");
   }
@@ -154,7 +157,7 @@ void loop() {
       trigger = false;
       Serial.println("Error on the sensors!");
       Serial.println(distance);
-      Serial.println(value):
+      Serial.println(value);
     }
 
     else if (!readDistance() && readPhotores()){
@@ -164,7 +167,7 @@ void loop() {
       trigger = false;
       Serial.println("Error on the sensors!");
       Serial.println(distance);
-      Serial.println(value):
+      Serial.println(value);
     }
 
     else {

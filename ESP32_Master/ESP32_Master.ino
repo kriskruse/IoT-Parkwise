@@ -1,3 +1,6 @@
+// TODO: THE SENDING DATA FUNC IS NOT WORKING AS EXPECTED, THE MASTER CAN RECIEVE DATA BUT NOT SEND
+
+
 
 #include <esp_now.h>
 #include <WiFi.h>
@@ -15,8 +18,9 @@ typedef struct SubData {
 SubData myData;
 
 // Create a structure to hold the readings from each board
-SubData board1 = {1, 0, false, {0x08, 0xB6, 0x1F, 0x81, 0x09, 0xF4}};
+SubData board1 = {1, 0, false, {0xC8, 0xC9, 0xA3, 0x64, 0xB4, 0x7B}};
 SubData board2 = {2, 0, false, {0xC8, 0xC9, 0xA3, 0x64, 0xB4, 0x7B}};
+uint8_t adr1[] = {0xC8, 0xC9, 0xA3, 0x64, 0xB4, 0x7B};
 
 // Create an array with all the structures
 SubData boardsData[2] = {board1, board2};
@@ -25,26 +29,26 @@ esp_now_peer_info_t peerInfo;
 
 //HTTP Server Initialization
 
-  // Replace with your network credentials      
-  const char* ssid = "Jordan’s phone";           
-  const char* password = "jordan123";
-  
-  // Set web server port number to 80
-  WiFiServer server(80);
+// Replace with your network credentials      
+const char* ssid = "KruseNet";           
+const char* password = "Krusers47";
 
-  // Variable to store the HTTP request
-  String header;
-  
-  // Auxiliar variables to store the current output state
-  int parkingStates[2] = {0,0};
-  char* colors[] = {"green", "yellow", "red","orange", "gray", "gray"};
+// Set web server port number to 80
+WiFiServer server(80);
 
-  // Current time
-  unsigned long currentTime = millis();
-  // Previous time
-  unsigned long previousTime = 0; 
-  // Define timeout time in milliseconds (example: 2000ms = 2s)
-  const long timeoutTime = 2000;
+// Variable to store the HTTP request
+String header;
+
+// Auxiliar variables to store the current output state
+int parkingStates[2] = {0,0};
+char* colors[] = {"green", "yellow", "red","orange", "gray", "gray"};
+
+// Current time
+unsigned long currentTime = millis();
+// Previous time
+unsigned long previousTime = 0; 
+// Define timeout time in milliseconds (example: 2000ms = 2s)
+const long timeoutTime = 2000;
 
 
 // callback function that will be executed when data is received
@@ -63,10 +67,14 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
   Serial.printf("reserved value: %d \n", boardsData[myData.id-1].reserved);
   Serial.println();
 }
- 
+
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nLast Packet Send Status:\t");
+  char macStr[18];
+  Serial.print("Packet sent to: ");
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  Serial.println(macStr);
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
@@ -76,15 +84,44 @@ void setup() {
   
   //Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
-  peerInfo.channel = 0;
-  peerInfo.encrypt = false;
+ 
 
   //Init ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
     return;
   }
-  //HTTP Server Setup
+  // Once ESPNow is successfully Init, we will register for recv CB to
+  // get recv packer info
+  esp_now_register_recv_cb(OnDataRecv);
+
+  // Once ESPNow is successfully Init, we will register for Send CB to
+  // get the status of Trasnmitted packet
+  esp_now_register_send_cb(OnDataSent);
+  
+  // Register peer
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  memcpy(peerInfo.peer_addr, adr1, 6);      
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.print("Failed to add peer 1:  ");
+    Serial.println(esp_now_add_peer(&peerInfo) - ESP_ERR_WIFI_BASE - 100);
+    return;
+  }else{
+    Serial.println("Added peer 1");
+  }
+  peerInfo.channel = 1;
+  peerInfo.encrypt = false;
+  memcpy(peerInfo.peer_addr, board2.mac, 6);      
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.print("Failed to add peer 2:  ");
+    Serial.println(esp_now_add_peer(&peerInfo) - ESP_ERR_WIFI_BASE - 100);
+    return;
+  }else{
+    Serial.println("Added peer 2");
+  } 
+
+   //HTTP Server Setup
     Serial.print("Connecting to ");
     Serial.println(ssid);
     WiFi.begin(ssid, password);
@@ -99,53 +136,34 @@ void setup() {
     Serial.println(WiFi.localIP());
     server.begin();
   
-  
-  // Once ESPNow is successfully Init, we will register for recv CB to
-  // get recv packer info
-  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-  esp_now_register_recv_cb(OnDataRecv);
-
-  // Once ESPNow is successfully Init, we will register for Send CB to
-  // get the status of Trasnmitted packet
-  esp_now_register_send_cb(OnDataSent);
-  
-  // Register peer
-  memcpy(peerInfo.peer_addr, board1.mac, 6);      
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Failed to add peer");
-    return;
-  }
-  memcpy(peerInfo.peer_addr, board2.mac, 6);      
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Failed to add peer");
-    return;
-  }
 }
  
+static unsigned long lastMethod1Time = 0;
+
 void loop() {
-  static unsigned long lastMethod1Time = 0;
   unsigned long currentTime = millis();
   unsigned long elapsedTime = currentTime - lastMethod1Time;
   
   // Acess the variables for each board
-  if (elapsedTime >= 10000) {
-    bool result = false;
+  if (elapsedTime >= 5000) {
+    Serial.println("Sending data to boards!");
     // Send message via ESP-NOW
-    for (SubData sentData : boardsData){
-      esp_err_t result = esp_now_send(sentData.mac, (uint8_t *) &sentData, sizeof(sentData));
-    }
-    
-    if (result == ESP_OK) {
-      Serial.println("Sent with success");
-    }
-    else {
-      Serial.println("Error sending the data");
-    }
-    lastMethod1Time = currentTime;
+    esp_err_t result = esp_now_send(boardsData[0].mac,(uint8_t *) &boardsData[0], sizeof(boardsData[0]));
 
+    Serial.print("Data to board1 func return: ");
+    Serial.println(result - ESP_ERR_WIFI_BASE - 100);
+    //Serial.println(result == ESP_OK ? "Succes" : "Failure");
+    delay(10);
+
+    result = esp_now_send(boardsData[1].mac,(uint8_t *) &boardsData[1], sizeof(boardsData[1]));
+
+    Serial.print("Data to board2 func return: ");
+    Serial.println(result - ESP_ERR_WIFI_BASE - 100);
+    //Serial.println(result == ESP_OK ? "Succes" : "Failure");
+
+    lastMethod1Time = currentTime;
   }
 
-  
   //HTTP server
     WiFiClient client = server.available();   // Listen for incoming clients
 
@@ -284,3 +302,6 @@ void cancelBookings(){//demo method
     }
   }
 }
+
+int ar[] = {ESP_ERR_WIFI_BASE,ESP_ERR_ESPNOW_BASE,ESP_OK, ESP_ERR_ESPNOW_NOT_INIT,ESP_ERR_ESPNOW_ARG ,
+            ESP_ERR_ESPNOW_INTERNAL,ESP_ERR_ESPNOW_NO_MEM,ESP_ERR_ESPNOW_NOT_FOUND,ESP_ERR_ESPNOW_IF };
