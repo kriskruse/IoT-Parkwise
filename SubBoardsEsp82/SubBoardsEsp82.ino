@@ -47,7 +47,7 @@ typedef struct SubData {
 
 // Create a SubData called myData
 SubData myData;  // incoming data
-SubData boardData = { 1, 0, false, {0x08, 0xB6, 0x1F, 0x81, 0x09, 0xF4}}; // mac adr is this boards
+SubData boardData = { 1, 0, false, {0xC8, 0xC9, 0xA3, 0x64, 0xB4, 0x7B}}; // mac adr is this boards
 
 
 // Callback when data is sent

@@ -50,9 +50,7 @@ void setup(){
   // Register peer
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
   peerInfo.channel = 0;  
-  peerInfo.encrypt = false;
-  
-  // Add peer        
+  peerInfo.encrypt = false;      
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
     Serial.println("Failed to add peer");
     return;
