@@ -8,6 +8,8 @@ typedef struct SubData {
     int id;
     int state;
     bool reserved;
+    uint8_t mac[6];
+    uint8_t channel;
 }SubData;
 
 // Create a SubData called myData
@@ -21,6 +23,7 @@ uint8_t broadcastAddress2[] = {0xC8, 0xC9, 0xA3, 0x64, 0xB4, 0x7B};
 uint8_t *adrArr[] = {broadcastAddress1, broadcastAddress2};
 // esp now info
 esp_now_peer_info_t peerInfo;
+int chan;
 
 // time 
 unsigned long currentTime = millis();
@@ -43,6 +46,11 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
     memcpy(&data, incomingData, sizeof(data));
     Serial.print("Recieved packet from id: ");
     Serial.println(data.id);
+
+    // add peer to info
+    Serial.println("Checking if sender is known");
+    addPeer(data.mac);
+
 }
 
 // callback when data is sent
@@ -55,6 +63,36 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
         Serial.println("Failed to send the Data");
     }
 }
+
+bool addPeer(const uint8_t *peer_addr) {      // add pairing
+  memset(&peerInfo, 0, sizeof(peerInfo));
+  const esp_now_peer_info_t *peer = &peerInfo;
+  memcpy(peerInfo.peer_addr, peer_addr, 6);
+  
+  peerInfo.channel = chan; // pick a channel
+  peerInfo.encrypt = 0; // no encryption
+  // check if the peer exists
+  bool exists = esp_now_is_peer_exist(peerInfo.peer_addr);
+  if (exists) {
+    // peerInfo already paired.
+    Serial.println("Already Paired");
+    return true;
+  }
+  else {
+    esp_err_t addStatus = esp_now_add_peer(peer);
+    if (addStatus == ESP_OK) {
+      // Pair success
+      Serial.println("Pair success");
+      return true;
+    }
+    else 
+    {
+      Serial.println("Pair failed");
+      return false;
+    }
+  }
+} 
+
 
 
 void setup(){
