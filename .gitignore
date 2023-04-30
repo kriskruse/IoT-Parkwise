@@ -7,3 +7,4 @@
 .idea/modules.xml
 .idea/vcs.xml
 .vscode/c_cpp_properties.json
+build/*
