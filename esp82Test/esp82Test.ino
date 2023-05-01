@@ -21,6 +21,7 @@ int distance;
 int value;
 int photoThres = 500; // photores  sensor threshold
 int proxiThres = 20;  // proximity sensor threshold
+
 Ultrasonic usensor (trigPin, echoPin);
 
 // RFID -------
@@ -143,11 +144,11 @@ void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
     incomingReadingsId = incomingReadings.readingId;
     printIncomingReadings();
     
-    if (incomingReadings.readingId % 2 == 1){
+    /* if (incomingReadings.readingId % 2 == 1){
       digitalWrite(LED_BUILTIN, LOW);
     } else { 
       digitalWrite(LED_BUILTIN, HIGH);
-    }
+    } */
     break;
 
   case PAIRING:
@@ -220,6 +221,10 @@ int getState(){
       trigger = false;
       }
   }
+  if (checkForCard()){ 
+    paid = true;
+    Serial.println("Paid!");
+  }
   return state;
 }
 
@@ -252,8 +257,6 @@ bool readPhotores() {
   }
   return false;
 }
-
-
 
 
 PairingStatus autoPairing(){
@@ -316,8 +319,11 @@ PairingStatus autoPairing(){
 void setup() {
   // Init Serial Monitor
   Serial.begin(115200);
-  pinMode(LED_BUILTIN, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
   // Init DHT sensor
+  SPI.begin(); // init SPI bus
+  rfid.PCD_Init(); // init MFRC522
+  delay(10);
  
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
@@ -342,11 +348,12 @@ void setup() {
  
 void loop() { 
   if (autoPairing() == PAIR_PAIRED) { 
+    getReadings();
     static unsigned long lastEventTime = millis();
     static const unsigned long EVENT_INTERVAL_MS = 10000;
     if ((millis() - lastEventTime) > EVENT_INTERVAL_MS) {
       Serial.print(".");
-      getReadings();
+      
 
       //Set values to send
       myData.msgType = DATA;
