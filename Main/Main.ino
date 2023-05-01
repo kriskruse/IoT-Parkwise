@@ -1,80 +1,152 @@
+/*
+  Rui Santos
+  Complete project details at https://RandomNerdTutorials.com/?s=esp-now
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files.
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+  Based on JC Servaye example: https://github.com/Servayejc/esp_now_web_server/
+*/
+
 #include <esp_now.h>
 #include <WiFi.h>
-#include <esp_wifi.h> 
+#include "ESPAsyncWebServer.h"
+#include "AsyncTCP.h"
+#include <ArduinoJson.h>
+
+// Replace with your network credentials (STATION)
+const char* ssid = "KruseNet";           
+const char* password = "Krusers47";
+
+esp_now_peer_info_t slave;
+int chan; 
+
+enum MessageType {PAIRING, DATA,};
+MessageType messageType;
+
+int counter = 0;
 
 // Structure example to receive data
 // Must match the sender structure
-typedef struct SubData {
-    int id;
-    int state;
-    bool reserved;
-    uint8_t mac[6];
+typedef struct struct_message {
+  uint8_t msgType;
+  uint8_t id;
+  int state;
+  bool reserved;
+  unsigned int readingId;
+} struct_message;
+
+typedef struct struct_pairing {       // new structure for pairing
+    uint8_t msgType;
+    uint8_t id;
+    uint8_t macAddr[6];
     uint8_t channel;
-}SubData;
+} struct_pairing;
 
-// Create a SubData called myData
-SubData data; // temp store for incoming
-SubData board1 = {1, 0, false};
-SubData board2 = {2, 0, false};
-SubData boardsData[] = {board1, board2};
+struct_message incomingReadings;
+struct_message outgoingSetpoints;
+struct_pairing pairingData;
 
-uint8_t broadcastAddress1[] = {0xC8, 0xC9, 0xA3, 0x64, 0xB4, 0x7B};
-uint8_t broadcastAddress2[] = {0xC8, 0xC9, 0xA3, 0x64, 0xB4, 0x7B};
-uint8_t *adrArr[] = {broadcastAddress1, broadcastAddress2};
-// esp now info
-esp_now_peer_info_t peerInfo;
-int chan;
+AsyncWebServer server(80);
+AsyncEventSource events("/events");
 
-// time 
-unsigned long currentTime = millis();
-unsigned long previousTime = 0; 
-const long timeoutTime = 2000;
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML><html>
+<head>
+  <title>ESP-NOW DASHBOARD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+  <link rel="icon" href="data:,">
+  <style>
+    html {font-family: Arial; display: inline-block; text-align: center;}
+    p {  font-size: 1.2rem;}
+    body {  margin: 0;}
+    .topnav { overflow: hidden; background-color: #2f4468; color: white; font-size: 1.7rem; }
+    .content { padding: 20px; }
+    .card { background-color: white; box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5); }
+    .cards { max-width: 700px; margin: 0 auto; display: grid; grid-gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .reading { font-size: 2.8rem; }
+    .packet { color: #bebebe; }
+    .card.state { color: #fd7e14; }
+    .card.reserved { color: #1b78e2; }
+  </style>
+</head>
+<body>
+  <div class="topnav">
+    <h3>ESP-NOW DASHBOARD</h3>
+  </div>
+  <div class="content">
+    <div class="cards">
+      <div class="card state">
+        <h4><i class="fas fa-thermometer-half"></i> BOARD #1 - state</h4><p><span class="reading"><span id="t1"></span> &deg;C</span></p><p class="packet">Reading ID: <span id="rt1"></span></p>
+      </div>
+      <div class="card reserved">
+        <h4><i class="fas fa-tint"></i> BOARD #1 - reserved</h4><p><span class="reading"><span id="h1"></span> &percnt;</span></p><p class="packet">Reading ID: <span id="rh1"></span></p>
+      </div>
+      <div class="card state">
+        <h4><i class="fas fa-thermometer-half"></i> BOARD #2 - state</h4><p><span class="reading"><span id="t2"></span> &deg;C</span></p><p class="packet">Reading ID: <span id="rt2"></span></p>
+      </div>
+      <div class="card reserved">
+        <h4><i class="fas fa-tint"></i> BOARD #2 - reserved</h4><p><span class="reading"><span id="h2"></span> &percnt;</span></p><p class="packet">Reading ID: <span id="rh2"></span></p>
+      </div>
+    </div>
+  </div>
+<script>
+if (!!window.EventSource) {
+ var source = new EventSource('/events');
+ 
+ source.addEventListener('open', function(e) {
+  console.log("Events Connected");
+ }, false);
+ source.addEventListener('error', function(e) {
+  if (e.target.readyState != EventSource.OPEN) {
+    console.log("Events Disconnected");
+  }
+ }, false);
+ 
+ source.addEventListener('message', function(e) {
+  console.log("message", e.data);
+ }, false);
+ 
+ source.addEventListener('new_readings', function(e) {
+  console.log("new_readings", e.data);
+  var obj = JSON.parse(e.data);
+  document.getElementById("t"+obj.id).innerHTML = obj.state.toFixed(2);
+  document.getElementById("h"+obj.id).innerHTML = obj.reserved.toFixed(2);
+  document.getElementById("rt"+obj.id).innerHTML = obj.readingId;
+  document.getElementById("rh"+obj.id).innerHTML = obj.readingId;
+ }, false);
+}
+</script>
+</body>
+</html>)rawliteral";
 
-//HTTP Server Initialization
-// Replace with your network credentials      
-const char* ssid = "KruseNet";           
-const char* password = "Krusers47";
-WiFiServer server(80); // Set web server port number to 80
-String header; // Variable to store the HTTP request
-int parkingStates[2] = {0,0}; // Auxiliar variables to store the current output state
-char* colors[] = {"green", "yellow", "red","orange", "gray", "gray"};
-
-
-
-// callback function that will be executed when data is received
-void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) {
-    memcpy(&data, incomingData, sizeof(data));
-    Serial.print("Recieved packet from id: ");
-    Serial.println(data.id);
-
-    // add peer to info
-    Serial.println("Checking if sender is known");
-    addPeer(data.mac);
-
+void readDataToSend() {
+  outgoingSetpoints.msgType = DATA;
+  outgoingSetpoints.id = 0;
+  /* outgoingSetpoints.state = root["state"]; */
+  outgoingSetpoints.reserved= false; // Get reserved state here
+  outgoingSetpoints.readingId = counter++;
 }
 
-// callback when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-    Serial.print("\r\nLast Packet Send Status:\t");
-    if (status == ESP_NOW_SEND_SUCCESS){
-        Serial.println("Sendt the Data");
-    }
-    else{
-        Serial.println("Failed to send the Data");
-    }
+
+// ---------------------------- esp_ now -------------------------
+void printMAC(const uint8_t * mac_addr){
+  char macStr[18];
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  Serial.print(macStr);
 }
 
 bool addPeer(const uint8_t *peer_addr) {      // add pairing
-  memset(&peerInfo, 0, sizeof(peerInfo));
-  const esp_now_peer_info_t *peer = &peerInfo;
-  memcpy(peerInfo.peer_addr, peer_addr, 6);
+  memset(&slave, 0, sizeof(slave));
+  const esp_now_peer_info_t *peer = &slave;
+  memcpy(slave.peer_addr, peer_addr, 6);
   
-  peerInfo.channel = chan; // pick a channel
-  peerInfo.encrypt = 0; // no encryption
+  slave.channel = chan; // pick a channel
+  slave.encrypt = 0; // no encryption
   // check if the peer exists
-  bool exists = esp_now_is_peer_exist(peerInfo.peer_addr);
+  bool exists = esp_now_is_peer_exist(slave.peer_addr);
   if (exists) {
-    // peerInfo already paired.
+    // Slave already paired.
     Serial.println("Already Paired");
     return true;
   }
@@ -93,55 +165,127 @@ bool addPeer(const uint8_t *peer_addr) {      // add pairing
   }
 } 
 
-
-
-void setup(){
-    Serial.begin(115200); // Init Serial Monitor
-    WiFi.mode(WIFI_AP_STA); // Set device as a Wi-Fi Station
-    WiFi.disconnect();
-    if (esp_now_init() != ESP_OK) { Serial.println("ESP-Now_err"); ESP.restart(); return; } 
-
-    // Once ESPNow is successfully Init, we will register for Send CB to
-    // get the status of Trasnmitted packet
-    esp_now_register_send_cb(OnDataSent);
-    memcpy(peerInfo.peer_addr, adrArr[0], 6); // Register peer
-    peerInfo.channel = 1;  
-    peerInfo.encrypt = false;
-    // Add peer        
-    if (esp_now_add_peer(&peerInfo) == ESP_OK){
-        Serial.println("Added Peer");
-    }else{Serial.println("Failed to add peer");}
-
-    // Register for a callback function that will be called when data is received
-    esp_now_register_recv_cb(OnDataRecv);
-
-    //HTTP Server Setup
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-    // Print local IP address and start web server
-    Serial.println("");
-    Serial.println("WiFi connected.");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
-    server.begin();
-        
+// callback when data is sent
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.print("Last Packet Send Status: ");
+  Serial.print(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success to " : "Delivery Fail to ");
+  printMAC(mac_addr);
+  Serial.println();
 }
 
-static unsigned long lastMethod1Time = 0;
+void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) { 
+  Serial.print(len);
+  Serial.print(" bytes of data received from : ");
+  printMAC(mac_addr);
+  Serial.println();
+  StaticJsonDocument<1000> root;
+  String payload;
+  uint8_t type = incomingData[0];       // first message byte is the type of message 
+  switch (type) {
+  case DATA :                           // the message is data type
+    memcpy(&incomingReadings, incomingData, sizeof(incomingReadings));
+    // create a JSON document with received data and send it by event to the web page
+    root["id"] = incomingReadings.id;
+    root["state"] = incomingReadings.state;
+    root["reserved"] = incomingReadings.reserved;
+    root["readingId"] = String(incomingReadings.readingId);
+    serializeJson(root, payload);
+    Serial.print("event send :");
+    serializeJson(root, Serial);
+    events.send(payload.c_str(), "new_readings", millis());
+    Serial.println();
+    break;
+  
+  case PAIRING:                            // the message is a pairing request 
+    memcpy(&pairingData, incomingData, sizeof(pairingData));
+    Serial.println(pairingData.msgType);
+    Serial.println(pairingData.id);
+    Serial.print("Pairing request from: ");
+    printMAC(mac_addr);
+    Serial.println();
+    Serial.println(pairingData.channel);
+    if (pairingData.id > 0) {     // do not replay to server itself
+      if (pairingData.msgType == PAIRING) { 
+        pairingData.id = 0;       // 0 is server
+        // Server is in AP_STA mode: peers need to send data to server soft AP MAC address 
+        WiFi.softAPmacAddress(pairingData.macAddr);   
+        pairingData.channel = chan;
+        Serial.println("send response");
+        esp_err_t result = esp_now_send(mac_addr, (uint8_t *) &pairingData, sizeof(pairingData));
+        addPeer(mac_addr);
+      }  
+    }  
+    break; 
+  }
+}
 
-void loop(){
-    unsigned long currentTime = millis();
-
-    if (currentTime - lastMethod1Time >= 5000){
-        esp_err_t result = esp_now_send(adrArr[0], (uint8_t *) &data, sizeof(data));
-        lastMethod1Time = currentTime;
+void initESP_NOW(){
+    // Init ESP-NOW
+    if (esp_now_init() != ESP_OK) {
+      Serial.println("Error initializing ESP-NOW");
+      return;
     }
-    
-    
-    
+    esp_now_register_send_cb(OnDataSent);
+    esp_now_register_recv_cb(OnDataRecv);
+} 
+
+void setup() {
+  // Initialize Serial Monitor
+  Serial.begin(115200);
+
+  Serial.println();
+  Serial.print("Server MAC Address:  ");
+  Serial.println(WiFi.macAddress());
+
+  // Set the device as a Station and Soft Access Point simultaneously
+  WiFi.mode(WIFI_AP_STA);
+  // Set device as a Wi-Fi Station
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Setting as a Wi-Fi Station..");
+  }
+
+  Serial.print("Server SOFT AP MAC Address:  ");
+  Serial.println(WiFi.softAPmacAddress());
+
+  chan = WiFi.channel();
+  Serial.print("Station IP Address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Wi-Fi Channel: ");
+  Serial.println(WiFi.channel());
+
+  initESP_NOW();
+  
+  // Start Web server
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", index_html);
+  });
+  
+
+  // Events 
+  events.onConnect([](AsyncEventSourceClient *client){
+    if(client->lastId()){
+      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
+    }
+    // send event with message "hello!", id current millis
+    // and set reconnect delay to 1 second
+    client->send("hello!", NULL, millis(), 10000);
+  });
+  server.addHandler(&events);
+  
+  // start server
+  server.begin();
+
+}
+
+void loop() {
+  static unsigned long lastEventTime = millis();
+  static const unsigned long EVENT_INTERVAL_MS = 5000;
+  if ((millis() - lastEventTime) > EVENT_INTERVAL_MS) {
+    events.send("ping",NULL,millis());
+    lastEventTime = millis();
+    readDataToSend();
+    esp_now_send(NULL, (uint8_t *) &outgoingSetpoints, sizeof(outgoingSetpoints));
+  }
 }

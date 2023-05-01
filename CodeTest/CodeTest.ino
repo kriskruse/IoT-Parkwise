@@ -65,8 +65,8 @@ const char index_html[] PROGMEM = R"rawliteral(
     .cards { max-width: 700px; margin: 0 auto; display: grid; grid-gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
     .reading { font-size: 2.8rem; }
     .packet { color: #bebebe; }
-    .card.temperature { color: #fd7e14; }
-    .card.humidity { color: #1b78e2; }
+    .card.state { color: #fd7e14; }
+    .card.reserved { color: #1b78e2; }
   </style>
 </head>
 <body>
@@ -75,17 +75,17 @@ const char index_html[] PROGMEM = R"rawliteral(
   </div>
   <div class="content">
     <div class="cards">
-      <div class="card temperature">
-        <h4><i class="fas fa-thermometer-half"></i> BOARD #1 - TEMPERATURE</h4><p><span class="reading"><span id="t1"></span> &deg;C</span></p><p class="packet">Reading ID: <span id="rt1"></span></p>
+      <div class="card state">
+        <h4><i class="fas fa-thermometer-half"></i> BOARD #1 - state</h4><p><span class="reading"><span id="t1"></span> &deg;C</span></p><p class="packet">Reading ID: <span id="rt1"></span></p>
       </div>
-      <div class="card humidity">
-        <h4><i class="fas fa-tint"></i> BOARD #1 - HUMIDITY</h4><p><span class="reading"><span id="h1"></span> &percnt;</span></p><p class="packet">Reading ID: <span id="rh1"></span></p>
+      <div class="card reserved">
+        <h4><i class="fas fa-tint"></i> BOARD #1 - reserved</h4><p><span class="reading"><span id="h1"></span> &percnt;</span></p><p class="packet">Reading ID: <span id="rh1"></span></p>
       </div>
-      <div class="card temperature">
-        <h4><i class="fas fa-thermometer-half"></i> BOARD #2 - TEMPERATURE</h4><p><span class="reading"><span id="t2"></span> &deg;C</span></p><p class="packet">Reading ID: <span id="rt2"></span></p>
+      <div class="card state">
+        <h4><i class="fas fa-thermometer-half"></i> BOARD #2 - state</h4><p><span class="reading"><span id="t2"></span> &deg;C</span></p><p class="packet">Reading ID: <span id="rt2"></span></p>
       </div>
-      <div class="card humidity">
-        <h4><i class="fas fa-tint"></i> BOARD #2 - HUMIDITY</h4><p><span class="reading"><span id="h2"></span> &percnt;</span></p><p class="packet">Reading ID: <span id="rh2"></span></p>
+      <div class="card reserved">
+        <h4><i class="fas fa-tint"></i> BOARD #2 - reserved</h4><p><span class="reading"><span id="h2"></span> &percnt;</span></p><p class="packet">Reading ID: <span id="rh2"></span></p>
       </div>
     </div>
   </div>
@@ -109,8 +109,8 @@ if (!!window.EventSource) {
  source.addEventListener('new_readings', function(e) {
   console.log("new_readings", e.data);
   var obj = JSON.parse(e.data);
-  document.getElementById("t"+obj.id).innerHTML = obj.temperature.toFixed(2);
-  document.getElementById("h"+obj.id).innerHTML = obj.humidity.toFixed(2);
+  document.getElementById("t"+obj.id).innerHTML = obj.state.toFixed(2);
+  document.getElementById("h"+obj.id).innerHTML = obj.reserved.toFixed(2);
   document.getElementById("rt"+obj.id).innerHTML = obj.readingId;
   document.getElementById("rh"+obj.id).innerHTML = obj.readingId;
  }, false);
@@ -122,8 +122,8 @@ if (!!window.EventSource) {
 void readDataToSend() {
   outgoingSetpoints.msgType = DATA;
   outgoingSetpoints.id = 0;
-  outgoingSetpoints.temp = random(0, 40);
-  outgoingSetpoints.hum = random(0, 100);
+  /* outgoingSetpoints.state = root["state"]; */
+  outgoingSetpoints.reserved= false; // Get reserved state here
   outgoingSetpoints.readingId = counter++;
 }
 
@@ -186,8 +186,8 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
     memcpy(&incomingReadings, incomingData, sizeof(incomingReadings));
     // create a JSON document with received data and send it by event to the web page
     root["id"] = incomingReadings.id;
-    root["temperature"] = incomingReadings.temp;
-    root["humidity"] = incomingReadings.hum;
+    root["state"] = incomingReadings.state;
+    root["reserved"] = incomingReadings.reserved;
     root["readingId"] = String(incomingReadings.readingId);
     serializeJson(root, payload);
     Serial.print("event send :");

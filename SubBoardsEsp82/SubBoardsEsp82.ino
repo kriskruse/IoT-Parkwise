@@ -131,7 +131,27 @@ void setup() {
 
 }
 
+int prevState;
+unsigned long prevSendTime = 0;
+
+
 void loop() {
+  unsigned long currentMillis = millis();
+  getState();
+
+  // we only send data if something changed, or we hit a long interval
+  // reduces interupts on the server
+  if (boardData.state != prevState || currentMillis - prevSendTime >= 20000){
+    esp_now_send(broadcastAddress, (uint8_t *) &boardData, sizeof(boardData));
+    prevSendTime = currentMillis;
+    prevState = boardData.state;
+  }
+  
+  
+}
+
+
+void getState(){
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     // save the last time you updated the DHT values
@@ -139,7 +159,6 @@ void loop() {
 
     //Get data readings
     if (readDistance() && readPhotores()){
-      boardData.state = 1;
       if (!trigger) {
         // Makes the timer only start ones
         trigger = true;
@@ -149,13 +168,14 @@ void loop() {
         // not paid in time
         boardData.state = 3;
       }
+      else if (paid){boardData.state = 1;}
     }
     else if (readDistance() && !readPhotores()){
       // one sensor failed, call support
       boardData.state = 5;
       paid = false;
       trigger = false;
-      Serial.println("Error on the sensors!");
+      Serial.println("Error on the Photoresister sensors!");
       Serial.println(distance);
       Serial.println(value);
     }
@@ -165,7 +185,7 @@ void loop() {
       boardData.state = 5;
       paid = false;
       trigger = false;
-      Serial.println("Error on the sensors!");
+      Serial.println("Error on the Distance sensors!");
       Serial.println(distance);
       Serial.println(value);
     }
@@ -183,10 +203,11 @@ void loop() {
     boardData.reserved = false; // recieved from main
 
     // Send message via ESP-NOW
-    esp_now_send(broadcastAddress, (uint8_t *) &boardData, sizeof(boardData));
+    
   }
 
   if (checkForCard()){ 
     paid = true;
+    Serial.println("Paid!");
   }
 }
