@@ -139,7 +139,7 @@ void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
     Serial.print(" Data bytes received from: ");
     printMAC(mac);
     Serial.println();
-    incomingState = incomingReadings.state;
+    //incomingState = incomingReadings.state;
     incomingReserved = incomingReadings.reserved;
     incomingReadingsId = incomingReadings.readingId;
     printIncomingReadings();
@@ -172,6 +172,10 @@ void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
 
 void getReadings(){
   state = getState();
+
+  /* Serial.print(readDistance());
+  Serial.print("  ");
+  Serial.println(readPhotores()); */
   
 }
 
@@ -186,39 +190,40 @@ int getState(){
       if (!trigger) {
         // Makes the timer only start ones
         trigger = true;
-        landingtime = currentMillis;
-      }
-      else if (landingtime - landingtime >= payinter && !paid){
-        // not paid in time
+        paid = false;
         return 3;
       }
-      else if (paid){state = 1;}
+      if (paid){
+        return 1;
+      }else {
+        return 3;
+      }
     }
     else if (readDistance() && !readPhotores()){
       // one sensor failed, call support
-      return 5;
       paid = false;
       trigger = false;
       Serial.println("Error on the Photoresister sensors!");
       Serial.println(distance);
       Serial.println(value);
+      return 5;
     }
 
     else if (!readDistance() && readPhotores()){
       // one sensor failed, call support
-      return 5;
       paid = false;
       trigger = false;
       Serial.println("Error on the Distance sensors!");
       Serial.println(distance);
       Serial.println(value);
+      return 5;
     }
 
     else {
       // car has left, reset to 0
-      return 0;
       paid = false;
       trigger = false;
+      return 0;
       }
   }
   if (checkForCard()){ 
@@ -350,7 +355,7 @@ void loop() {
   if (autoPairing() == PAIR_PAIRED) { 
     getReadings();
     static unsigned long lastEventTime = millis();
-    static const unsigned long EVENT_INTERVAL_MS = 10000;
+    static const unsigned long EVENT_INTERVAL_MS = 2000;
     if ((millis() - lastEventTime) > EVENT_INTERVAL_MS) {
       Serial.print(".");
       

@@ -49,151 +49,192 @@ AsyncWebServer server(80);
 AsyncEventSource events("/events");
 
 const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML><html>
+<!DOCTYPE HTML>
+<html>
+
 <head>
-  <title>ParkWise Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-  <link rel="icon" href="data:,">
-  <style>
-    html {font-family: Arial; display: inline-block; text-align: center;}
-    p {  font-size: 1.2rem;}
-    body {  margin: 0;}
-    .topnav { overflow: hidden; background-color: #2f4468; color: white; font-size: 1.7rem; }
-    .content { padding: 20px; }
-    .card { background-color: white; box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5); }
-    .cards { max-width: 700px; margin: 0 auto; display: grid; grid-gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-    .reading { font-size: 2.8rem; }
-    .packet { color: #bebebe; }
-    .card.state { color: #fd7e14; }
-    .card.reserved { color: #1b78e2; }
-      /* Define the class for the square */
-    .square {
-        display: inline-block;
-        width: 100px;
-        height: 100px;
-        margin-right: 10px;
-        text-align: center;
-        font-size: 24px;
-        color: black;
-        line-height: 100px;
-    }
-  </style>
+    <title>ParkWise Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+    <link rel="icon" href="data:,">
+    <style>
+        html {
+            font-family: Arial;
+            display: inline-block;
+            text-align: center;
+        }
+
+        p {
+            font-size: 1.2rem;
+        }
+
+        body {
+            margin: 0;
+        }
+
+        .topnav {
+            overflow: hidden;
+            background-color: #2f4468;
+            color: white;
+            font-size: 1.7rem;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .card {
+            background-color: white;
+            box-shadow: 2px 2px 12px 1px rgba(140, 140, 140, .5);
+        }
+
+        .cards {
+            max-width: 700px;
+            margin: 0 auto;
+            display: grid;
+            grid-gap: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .reading {
+            font-size: 2.8rem;
+        }
+
+        .packet {
+            color: #bebebe;
+            font-size: 10px;
+        }
+
+        .card.state {
+            color: #fd7e14;
+        }
+
+        .card.reserved {
+            color: #1b78e2;
+        }
+
+        /* Define the class for the square */
+        /*.square {
+            display: inline-block;
+            width: 100px;
+            height: 100px;
+            margin-right: 10px;
+            text-align: center;
+            font-size: 24px;
+            color: black;
+            line-height: 100px;
+        }*/
+        /* Style the buttons */
+        button {
+            font-size: 24px;
+            padding: 12px;
+        }
+
+
+    </style>
 </head>
-    
+
 <body>
-  <div class="topnav">
-    <h3>ParkWise Dashboard</h3>
-  </div>
-  <div class="content">
-    
-    <div style="font-size: 1.8rem;">Map</div>
-    <p></p>
+    <div class="topnav">
+        <h3>ParkWise Dashboard</h3>
+    </div>
+    <div class="content">
+
+        <div style="font-size: 1.8rem;">Map</div>
+        <h4><i class="fas"></i> Parking Spot 1: </h4><p><span class="reading"><span id="t1"></span></span></p><p class="packet">Spot ID: <span id="rt1"></span></p>
+        <h4><i class="fas"></i> Parking Spot 2: </h4><p><span class="reading"><span id="t2"></span></span></p><p class="packet">Spot ID: <span id="rt2"></span></p>
+        <p></p>
+        <p>The map above illustrates the availability of parking spots. Red means that someone is parked there, yellow means someone reserved the spot, and green means the spot is available.</p>
+
+        <div style="font-size: 1.8rem;">Reserve Here</div>
+        <p></p>
+
+        <p>As soon as you reserve or park in a spot, the timer for your parking begins (you pay based on the timer). Click on the available spot button that you want to book.</p>
  
- 
-<script>
-const colors = ["green", "yellow", "red", "red", "gray", "gray"];
-// 	
-if	(1==0){
-	var l = Math.floor(Math.random() * colors.length);//should change soon
-	var r = Math.floor(Math.random() * colors.length);//should change soon
-    } else	{
-	var l = document.getElementById("1").state
-	var r = document.getElementById("2").state
-    }
-      // Get the squares by their IDs
-      var square1 = document.getElementById("square1");
-      var square2 = document.getElementById("square2");
+        <button id="button1" onclick="hideLeft()">Reserve Spot 1</button>
+        <button id="button2" onclick="hideRight()">Reserve Spot 2</button>
+        
+        
+        
+        
+        <script>
+            const colors = ["green", "yellow", "red", "red", "gray", "gray"];
+            // 	
+            if (1 == 0) {
+                var l = Math.floor(Math.random() * colors.length); //should change soon
+                var r = Math.floor(Math.random() * colors.length); //should change soon
+            } else {
+                var l = document.getElementById("1").state
+                var r = document.getElementById("2").state
+            }
+            // Get the squares by their IDs
+            var square1 = document.getElementById("square1");
+            var square2 = document.getElementById("square2");
 
-      // Set the background color and text of the squares
-      square1.style.backgroundColor = colors[l];
-      square1.innerHTML = "Spot 1";
+            // Set the background color and text of the squares
+            square1.style.backgroundColor = colors[l];
+            square1.innerHTML = "Spot 1";
 
-      square2.style.backgroundColor = colors[r];
-      square2.innerHTML = "Spot 2";
-
-
-if (!!window.EventSource) {
- var source = new EventSource('/events');
- 
- source.addEventListener('open', function(e) {
-  console.log("Events Connected");
- }, false);
- source.addEventListener('error', function(e) {
-  if (e.target.readyState != EventSource.OPEN) {
-    console.log("Events Disconnected");
-  }
- }, false);
- 
- source.addEventListener('message', function(e) {
-  console.log("message", e.data);
- }, false);
- 
- source.addEventListener('new_readings', function(e) {
-  console.log("new_readings", e.data);
-  var obj = JSON.parse(e.data);
-  document.getElementById("t"+obj.id).innerHTML = obj.state;
-  document.getElementById("h"+obj.id).innerHTML = obj.reserved.toFixed(2);
-  document.getElementById("rt"+obj.id).innerHTML = obj.readingId;
-  document.getElementById("rh"+obj.id).innerHTML = obj.readingId;
- }, false);
-}
-</script>
-    
-    
-    
-    <p></p>
-    <p>The map above illustrates the availability of parking spots. Red means that someone is parked there, yellow means someone reserved the spot, and green means the spot is available.</p>
-    
-    <div style="font-size: 1.8rem;">Reserve Here</div>
-    <p></p>
-    
-    <p>As soon as you reserve or park in a spot, the timer for your parking begins (you pay based on the timer). Click on the available spot button that you want to book.</p>
-        <!-- <p>This is another paragraph </p> --> 
-        <style>
-		/* Style the buttons */
-		button {
-			font-size: 24px;
-			padding: 12px;
-		}
-	</style>
-   <button id="button1" onclick="hideLeft()">Reserve Spot 1</button>
-	<button id="button2" onclick="hideRight()">Reserve Spot 2</button>
-   <script>
+            square2.style.backgroundColor = colors[r];
+            square2.innerHTML = "Spot 2";
 
 
-  function hideLeft() {
-    document.getElementById("button1").style.display = "none";
-    document.getElementById("1").state= 1;
-    document.getElementById("1").reserved= true;
+            if (!!window.EventSource) {
+                var source = new EventSource('/events');
 
-  }
+                source.addEventListener('open', function(e) {
+                    console.log("Events Connected");
+                }, false);
+                source.addEventListener('error', function(e) {
+                    if (e.target.readyState != EventSource.OPEN) {
+                        console.log("Events Disconnected");
+                    }
+                }, false);
 
-  function hideRight() {
-  document.getElementById("button2").style.display = "none";
-     document.getElementById("2").state= 1;
-    document.getElementById("2").reserved= true;
-    
-  }
+                source.addEventListener('message', function(e) {
+                    console.log("message", e.data);
+                }, false);
 
-  // hide left button if I = 1
-  if (document.getElementById("1").state > 0) {
-    document.getElementById("button1").style.display = "none";
-  }
+                source.addEventListener('new_readings', function(e) {
+                    console.log("new_readings", e.data);
+                    var obj = JSON.parse(e.data);
+                    document.getElementById("t" + obj.id).innerHTML = obj.state.toFixed(2);
+                    document.getElementById("h" + obj.id).innerHTML = obj.reserved.toFixed(2);
+                    document.getElementById("rt" + obj.id).innerHTML = obj.readingId;
+                    document.getElementById("rh" + obj.id).innerHTML = obj.readingId;
+                }, false);
+            }
+    
+        
+            function hideLeft() {
+                document.getElementById("button1").style.display = "none";
+                document.getElementById("1").state = 1;
+                document.getElementById("1").reserved = true;
 
-  // hide right button if J = 1
-  if (document.getElementById("2").state > 0) {
-    document.getElementById("button2").style.display = "none";
-  }
- 
-</script>
-   
-    
-    
-    
-    
-</body>
-</html>)rawliteral";
+            }
+
+            function hideRight() {
+                document.getElementById("button2").style.display = "none";
+                document.getElementById("2").state = 1;
+                document.getElementById("2").reserved = true;
+
+            }
+
+            // hide left button if I = 1
+            if (document.getElementById("1").state > 0) {
+                document.getElementById("button1").style.display = "none";
+            }
+
+            // hide right button if J = 1
+            if (document.getElementById("2").state > 0) {
+                document.getElementById("button2").style.display = "none";
+            }
+            
+
+        </script>
+    </body>
+</html>
+)rawliteral";
 
 void readDataToSend() {
   outgoingSetpoints.msgType = DATA;
