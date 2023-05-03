@@ -1,9 +1,7 @@
 /*
-  Rui Santos
-  Complete project details at https://RandomNerdTutorials.com/?s=esp-now
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files.
-  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-  Based on JC Servaye example: https://github.com/Servayejc/esp_now_web_server/
+This code was based on some tutorials made by
+RandomNerdTutorial, see link for their stuff
+https://RandomNerdTutorials.com/?s=esp-now
 */
 
 #include <esp_now.h>
