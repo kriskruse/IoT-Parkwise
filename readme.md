@@ -11,3 +11,7 @@ Kris - Bachalor from Denmark
 
 
 This project is free of use. However use for acedemic work should be properly cited
+
+The following video is a quick demo of the proof of concept
+https://user-images.githubusercontent.com/13639480/236020432-3db46868-e15a-40ce-abb7-b3cd69b09754.mp4
+
