@@ -45,7 +45,7 @@ unsigned long previousMillisSens = 0;
 // Communication ------
 uint8_t channel = 1;
 int readingId = 0;
-int id = 1;
+int id = 2;
 
 unsigned long currentMillis = millis(); 
 unsigned long lastTime = 0;  
@@ -94,7 +94,7 @@ struct_message myData;
 struct_message incomingReadings;
 struct_pairing pairingData;
 
-#define BOARD_ID 1
+#define BOARD_ID 2
 unsigned long start;
 
 // Callback when data is sent

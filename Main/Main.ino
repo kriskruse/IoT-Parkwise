@@ -74,6 +74,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     <h3>ESP-NOW DASHBOARD</h3>
   </div>
   <div class="content">
+    <div><p> States: 0 = Free, 1 = Occupied, 2 = Reserved, 3 = Awaiting payment, 5 = Sensor failure </p></div>
     <div class="cards">
       <div class="card state">
         <h4><i class="fas"></i> BOARD #1 - state</h4><p><span class="reading"><span id="t1"></span></span></p><p class="packet">Board ID: <span id="rt1"></span></p>
