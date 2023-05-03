@@ -375,6 +375,8 @@ void setColor(int state) {
     delay(20);
     digitalWrite(PIN_RED, 0);
     digitalWrite(PIN_GREEN, 0);
+    delay(20);
+
   }
    else {
     digitalWrite(PIN_RED, 0);
