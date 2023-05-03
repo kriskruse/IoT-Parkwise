@@ -16,6 +16,8 @@
 const int trigPin = D1;
 const int echoPin = D2;
 const int photores = A0;
+const int PIN_RED   = D3;
+const int PIN_GREEN = D4;
 
 int distance;
 int value;
@@ -172,11 +174,13 @@ void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
 
 void getReadings(){
   state = getState();
+  setColor(state);
 
-  /* Serial.print(readDistance());
+  /*
+  Serial.print(readDistance());
   Serial.print("  ");
-  Serial.println(readPhotores()); */
-  
+  Serial.println(readPhotores()); 
+  */
 }
 
 int getState(){
@@ -324,6 +328,9 @@ PairingStatus autoPairing(){
 void setup() {
   // Init Serial Monitor
   Serial.begin(115200);
+  pinMode(PIN_RED,   OUTPUT);
+  pinMode(PIN_GREEN, OUTPUT);
+
   //pinMode(LED_BUILTIN, OUTPUT);
   // Init DHT sensor
   SPI.begin(); // init SPI bus
@@ -349,6 +356,30 @@ void setup() {
   esp_now_register_send_cb(OnDataSent);
 
   pairingData.id = BOARD_ID;
+}
+void setColor(int state) {
+  if (state==2) {
+    digitalWrite(PIN_RED, 1);
+    digitalWrite(PIN_GREEN, 0);
+  } 
+  else if (state==3) {
+    digitalWrite(PIN_RED, 1);
+    digitalWrite(PIN_GREEN, 1);
+  }
+  else if (state == 0)  {
+    digitalWrite(PIN_RED, 0);
+    digitalWrite(PIN_GREEN, 1);
+  } else if (state==5)  {
+    digitalWrite(PIN_RED, 1);
+    digitalWrite(PIN_GREEN, 0);
+    delay(20);
+    digitalWrite(PIN_RED, 0);
+    digitalWrite(PIN_GREEN, 0);
+  }
+   else {
+    digitalWrite(PIN_RED, 0);
+    digitalWrite(PIN_GREEN, 0);
+  }
 }
  
 void loop() { 
